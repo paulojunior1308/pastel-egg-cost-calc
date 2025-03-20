@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useCost } from '../context/CostContext';
 import { Input } from '@/components/ui/input';
@@ -19,34 +18,39 @@ const units = [
 ];
 
 const IngredientForm: React.FC = () => {
-  const { addIngredient } = useCost();
+  const { addIngredient, loading } = useCost();
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('g');
-  const [pricePerUnit, setPricePerUnit] = useState<number | ''>('');
-  const [quantityPerEgg, setQuantityPerEgg] = useState<number | ''>('');
+  const [price, setPrice] = useState<number | ''>('');
+  const [quantity, setQuantity] = useState<number | ''>('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !unit || pricePerUnit === '' || quantityPerEgg === '') {
+    if (!name || !unit || price === '' || quantity === '') {
       toast.error('Preencha todos os campos!');
       return;
     }
 
-    addIngredient({
-      name,
-      unit,
-      pricePerUnit: Number(pricePerUnit),
-      quantityPerEgg: Number(quantityPerEgg),
-    });
+    try {
+      await addIngredient({
+        name,
+        unit,
+        price: Number(price),
+        quantity: Number(quantity),
+      });
 
-    toast.success('Ingrediente adicionado com sucesso!');
+      toast.success('Ingrediente adicionado com sucesso!');
 
-    // Reset form
-    setName('');
-    setUnit('g');
-    setPricePerUnit('');
-    setQuantityPerEgg('');
+      // Reset form
+      setName('');
+      setUnit('g');
+      setPrice('');
+      setQuantity('');
+    } catch (error) {
+      toast.error('Erro ao adicionar ingrediente. Tente novamente.');
+      console.error('Erro:', error);
+    }
   };
 
   return (
@@ -88,35 +92,35 @@ const IngredientForm: React.FC = () => {
           </div>
 
           <div className="form-input-container">
-            <Label htmlFor="price-per-unit">Preço por Unidade (R$)</Label>
+            <Label htmlFor="price">Preço (R$)</Label>
             <Input
-              id="price-per-unit"
+              id="price"
               type="number"
               step="0.01"
               min="0"
               placeholder="Ex: 25.00"
-              value={pricePerUnit}
-              onChange={(e) => setPricePerUnit(e.target.value ? Number(e.target.value) : '')}
+              value={price}
+              onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : '')}
               className="w-full"
             />
           </div>
 
           <div className="form-input-container">
-            <Label htmlFor="quantity-per-egg">Quantidade por Ovo</Label>
+            <Label htmlFor="quantity">Quantidade</Label>
             <Input
-              id="quantity-per-egg"
+              id="quantity"
               type="number"
               step="0.01"
               min="0"
-              placeholder={`Ex: 0.2 ${unit}`}
-              value={quantityPerEgg}
-              onChange={(e) => setQuantityPerEgg(e.target.value ? Number(e.target.value) : '')}
+              placeholder={`Ex: 1 ${unit}`}
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value ? Number(e.target.value) : '')}
               className="w-full"
             />
           </div>
         </div>
 
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={loading}>
           <Plus className="mr-2 h-4 w-4" /> Adicionar Ingrediente
         </Button>
       </form>

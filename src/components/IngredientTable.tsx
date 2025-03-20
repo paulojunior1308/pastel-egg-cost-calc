@@ -1,19 +1,33 @@
-
 import React from 'react';
 import { useCost, Ingredient } from '../context/CostContext';
-import { calculateIngredientCost, formatCurrency } from '../utils/calculationUtils';
+import { formatCurrency } from '../utils/calculationUtils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, Edit } from 'lucide-react';
 import { toast } from "sonner";
 
 const IngredientTable: React.FC = () => {
-  const { ingredients, removeIngredient } = useCost();
+  const { ingredients, deleteIngredient, loading } = useCost();
 
-  const handleRemove = (id: string, name: string) => {
-    removeIngredient(id);
-    toast.success(`Ingrediente "${name}" removido com sucesso!`);
+  const handleDelete = async (id: string, name: string) => {
+    try {
+      await deleteIngredient(id);
+      toast.success(`Ingrediente "${name}" removido com sucesso!`);
+    } catch (error) {
+      toast.error('Erro ao remover ingrediente. Tente novamente.');
+      console.error('Erro:', error);
+    }
   };
+
+  if (loading) {
+    return (
+      <Card className="p-6 text-center animate-fade-in">
+        <p className="text-muted-foreground">
+          Carregando ingredientes...
+        </p>
+      </Card>
+    );
+  }
 
   if (ingredients.length === 0) {
     return (
@@ -35,13 +49,13 @@ const IngredientTable: React.FC = () => {
                 Ingrediente
               </th>
               <th scope="col" className="px-6 py-3">
-                Preço por Unidade
+                Preço
               </th>
               <th scope="col" className="px-6 py-3">
-                Quantidade por Ovo
+                Quantidade
               </th>
               <th scope="col" className="px-6 py-3">
-                Custo por Ovo
+                Custo Total
               </th>
               <th scope="col" className="px-6 py-3">
                 Ações
@@ -53,7 +67,7 @@ const IngredientTable: React.FC = () => {
               <IngredientRow
                 key={ingredient.id}
                 ingredient={ingredient}
-                onRemove={() => handleRemove(ingredient.id, ingredient.name)}
+                onDelete={() => handleDelete(ingredient.id, ingredient.name)}
               />
             ))}
           </tbody>
@@ -65,7 +79,7 @@ const IngredientTable: React.FC = () => {
               <td className="px-6 py-3 font-bold">
                 {formatCurrency(
                   ingredients.reduce(
-                    (sum, ingredient) => sum + calculateIngredientCost(ingredient),
+                    (sum, ingredient) => sum + (ingredient.price * ingredient.quantity),
                     0
                   )
                 )}
@@ -81,11 +95,11 @@ const IngredientTable: React.FC = () => {
 
 interface IngredientRowProps {
   ingredient: Ingredient;
-  onRemove: () => void;
+  onDelete: () => void;
 }
 
-const IngredientRow: React.FC<IngredientRowProps> = ({ ingredient, onRemove }) => {
-  const cost = calculateIngredientCost(ingredient);
+const IngredientRow: React.FC<IngredientRowProps> = ({ ingredient, onDelete }) => {
+  const totalCost = ingredient.price * ingredient.quantity;
 
   return (
     <tr className="bg-white border-b hover:bg-muted/50 transition-colors">
@@ -93,13 +107,13 @@ const IngredientRow: React.FC<IngredientRowProps> = ({ ingredient, onRemove }) =
         {ingredient.name}
       </td>
       <td className="px-6 py-4">
-        {formatCurrency(ingredient.pricePerUnit)}/{ingredient.unit}
+        {formatCurrency(ingredient.price)}/{ingredient.unit}
       </td>
       <td className="px-6 py-4">
-        {ingredient.quantityPerEgg} {ingredient.unit}
+        {ingredient.quantity} {ingredient.unit}
       </td>
       <td className="px-6 py-4">
-        {formatCurrency(cost)}
+        {formatCurrency(totalCost)}
       </td>
       <td className="px-6 py-4">
         <div className="flex space-x-2">
@@ -107,7 +121,7 @@ const IngredientRow: React.FC<IngredientRowProps> = ({ ingredient, onRemove }) =
             <Edit className="h-4 w-4" />
             <span className="sr-only">Editar</span>
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onRemove}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onDelete}>
             <Trash2 className="h-4 w-4" />
             <span className="sr-only">Remover</span>
           </Button>

@@ -1,4 +1,4 @@
-
+import * as XLSX from 'xlsx';
 import { Ingredient, ExtraCost } from "../context/CostContext";
 
 export const calculateIngredientCost = (ingredient: Ingredient): number => {
@@ -58,46 +58,72 @@ export const exportToExcel = (
   totalCost: number,
   suggestedPrice: number
 ) => {
-  // This would connect to a library like xlsx to generate a spreadsheet
-  // For now, we'll use a simple CSV export
-  
-  let csv = 'Relatório de Custos e Preços - Ovos de Páscoa\n\n';
-  
-  // Ingredients section
-  csv += 'INGREDIENTES\n';
-  csv += 'Nome,Unidade,Preço por Unidade,Quantidade por Ovo,Custo por Ovo\n';
-  
-  ingredients.forEach(ing => {
-    csv += `${ing.name},${ing.unit},${ing.pricePerUnit},${ing.quantityPerEgg},${calculateIngredientCost(ing)}\n`;
-  });
-  
-  csv += `\nTotal de Ingredientes,,,${calculateTotalIngredientCost(ingredients)}\n\n`;
-  
-  // Extra costs section
-  csv += 'CUSTOS EXTRAS\n';
-  csv += 'Descrição,Custo Total,Por Ovo,Custo por Ovo\n';
-  
-  extraCosts.forEach(extra => {
-    csv += `${extra.name},${extra.cost},${extra.isPerEgg ? 'Sim' : 'Não'},${calculateExtraCostPerEgg(extra, eggQuantity)}\n`;
-  });
-  
-  csv += `\nTotal de Custos Extras,,,${calculateTotalExtraCostPerEgg(extraCosts, eggQuantity)}\n\n`;
-  
-  // Summary section
-  csv += 'RESUMO\n';
-  csv += `Quantidade de Ovos,${eggQuantity}\n`;
-  csv += `Custo Total por Ovo,${totalCost}\n`;
-  csv += `Margem de Lucro,${profitMargin}%\n`;
-  csv += `Preço de Venda Sugerido,${suggestedPrice}\n`;
-  
-  // Create and trigger download
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', 'relatorio_ovos_pascoa.csv');
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  // Criar workbook
+  const wb = XLSX.utils.book_new();
+
+  // Dados dos Ingredientes
+  const ingredientsData = [
+    ['INGREDIENTES'],
+    ['Nome', 'Unidade', 'Preço', 'Quantidade', 'Custo Total'],
+    ...ingredients.map(ing => [
+      ing.name,
+      ing.unit,
+      formatCurrency(ing.price),
+      ing.quantity,
+      formatCurrency(ing.price * ing.quantity)
+    ]),
+    ['', '', '', 'Total', formatCurrency(calculateTotalIngredientCost(ingredients))]
+  ];
+
+  // Dados dos Custos Extras
+  const extraCostsData = [
+    ['CUSTOS EXTRAS'],
+    ['Descrição', 'Custo Total'],
+    ...extraCosts.map(extra => [
+      extra.name,
+      formatCurrency(extra.cost)
+    ]),
+    ['', 'Total', formatCurrency(calculateTotalExtraCostPerEgg(extraCosts, eggQuantity))]
+  ];
+
+  // Dados do Resumo
+  const summaryData = [
+    ['RESUMO'],
+    ['Quantidade de Ovos', eggQuantity],
+    ['Custo Total por Ovo', formatCurrency(totalCost)],
+    ['Margem de Lucro', `${profitMargin}%`],
+    ['Preço de Venda Sugerido', formatCurrency(suggestedPrice)]
+  ];
+
+  // Criar worksheets
+  const ingredientsWs = XLSX.utils.aoa_to_sheet(ingredientsData);
+  const extraCostsWs = XLSX.utils.aoa_to_sheet(extraCostsData);
+  const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+
+  // Configurar largura das colunas
+  ingredientsWs['!cols'] = [
+    { wch: 30 }, // Nome
+    { wch: 15 }, // Unidade
+    { wch: 15 }, // Preço
+    { wch: 15 }, // Quantidade
+    { wch: 15 }  // Custo Total
+  ];
+
+  extraCostsWs['!cols'] = [
+    { wch: 30 }, // Descrição
+    { wch: 15 }  // Custo Total
+  ];
+
+  summaryWs['!cols'] = [
+    { wch: 30 }, // Descrição
+    { wch: 15 }  // Valor
+  ];
+
+  // Adicionar worksheets ao workbook
+  XLSX.utils.book_append_sheet(wb, ingredientsWs, 'Ingredientes');
+  XLSX.utils.book_append_sheet(wb, extraCostsWs, 'Custos Extras');
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Resumo');
+
+  // Gerar arquivo
+  XLSX.writeFile(wb, 'relatorio_ovos_pascoa.xlsx');
 };
